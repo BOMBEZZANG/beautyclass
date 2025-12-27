@@ -1,65 +1,102 @@
-import Image from "next/image";
+import Link from "next/link";
+import Navbar from "@/components/Navbar";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="min-h-screen bg-gradient-to-b from-pink-50 via-white to-purple-50">
+      <Navbar />
+
+      {/* Hero Section */}
+      <main className="pt-16">
+        <section className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl md:text-6xl">
+              <span className="block">당신의 아름다움을</span>
+              <span className="mt-2 block bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
+                한 단계 높여보세요
+              </span>
+            </h1>
+            <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-600">
+              전문 강사진과 함께하는 프리미엄 뷰티 교육.
+              <br />
+              메이크업, 헤어, 네일 아트 등 다양한 뷰티 강좌를 만나보세요.
+            </p>
+            <div className="mt-10 flex items-center justify-center gap-4">
+              <Link
+                href="/courses"
+                className="rounded-full bg-gradient-to-r from-pink-500 to-purple-500 px-8 py-3 text-base font-semibold text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5"
+              >
+                강의 둘러보기
+              </Link>
+              <button className="rounded-full border-2 border-gray-200 bg-white px-8 py-3 text-base font-semibold text-gray-700 hover:border-pink-300 transition-colors">
+                더 알아보기
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Features */}
+        <section className="bg-white py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-8 md:grid-cols-3">
+              <div className="text-center p-6">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-pink-100 text-3xl">
+                  👩‍🏫
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">전문 강사진</h3>
+                <p className="mt-2 text-gray-600">
+                  현업에서 활동하는 전문가들의 실전 노하우를 배워보세요
+                </p>
+              </div>
+              <div className="text-center p-6">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-100 text-3xl">
+                  📱
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">언제 어디서나</h3>
+                <p className="mt-2 text-gray-600">
+                  PC, 모바일에서 시간과 장소에 구애받지 않고 학습하세요
+                </p>
+              </div>
+              <div className="text-center p-6">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-pink-100 text-3xl">
+                  🎯
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">체계적인 커리큘럼</h3>
+                <p className="mt-2 text-gray-600">
+                  입문부터 고급까지 단계별로 체계적으로 학습할 수 있습니다
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section className="py-20">
+          <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
+            <h2 className="text-3xl font-bold text-gray-900">
+              지금 바로 시작하세요
+            </h2>
+            <p className="mt-4 text-lg text-gray-600">
+              새로운 강의가 매주 업데이트됩니다
+            </p>
+            <Link
+              href="/courses"
+              className="mt-8 inline-block rounded-full bg-gradient-to-r from-pink-500 to-purple-500 px-10 py-4 text-lg font-semibold text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+              전체 강의 보기
+            </Link>
+          </div>
+        </section>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t bg-gray-50">
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <p className="text-center text-sm text-gray-500">
+            © 2024 뷰티클래스. All rights reserved.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </footer>
     </div>
   );
 }
