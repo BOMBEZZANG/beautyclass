@@ -111,11 +111,21 @@ export async function POST(request: NextRequest) {
       .setExpirationTime(expirationTime)
       .sign(privateKey)
 
+    // 디버깅: 환경변수 확인 (배포 후 제거할 것)
+    const keyPreview = CF_STREAM_SIGNING_KEY_BASE64
+      ? `${CF_STREAM_SIGNING_KEY_BASE64.substring(0, 20)}...${CF_STREAM_SIGNING_KEY_BASE64.substring(CF_STREAM_SIGNING_KEY_BASE64.length - 20)}`
+      : 'NOT_SET'
+
     return NextResponse.json({
       token,
       videoId,
       customerSubdomain: CF_STREAM_CUSTOMER_SUBDOMAIN,
       expiresIn,
+      debug: {
+        keyId: CF_STREAM_KEY_ID,
+        keyLength: CF_STREAM_SIGNING_KEY_BASE64?.length || 0,
+        keyPreview,
+      }
     })
 
   } catch (error) {
