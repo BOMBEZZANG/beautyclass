@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { SignJWT } from 'jose'
-import { createPrivateKey } from 'crypto'
+import { createPrivateKey, createHash } from 'crypto'
 
 // Vercel에서 Node.js 런타임 사용 (crypto 모듈 필요)
 export const runtime = 'nodejs'
@@ -116,6 +116,9 @@ export async function POST(request: NextRequest) {
       ? `${CF_STREAM_SIGNING_KEY_BASE64.substring(0, 20)}...${CF_STREAM_SIGNING_KEY_BASE64.substring(CF_STREAM_SIGNING_KEY_BASE64.length - 20)}`
       : 'NOT_SET'
 
+    // 키 전체의 SHA256 해시 (정확한 비교용)
+    const keyHash = createHash('sha256').update(CF_STREAM_SIGNING_KEY_BASE64 || '').digest('hex').substring(0, 16)
+
     return NextResponse.json({
       token,
       videoId,
@@ -125,6 +128,7 @@ export async function POST(request: NextRequest) {
         keyId: CF_STREAM_KEY_ID,
         keyLength: CF_STREAM_SIGNING_KEY_BASE64?.length || 0,
         keyPreview,
+        keyHash,
       }
     })
 
