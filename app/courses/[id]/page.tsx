@@ -23,6 +23,11 @@ interface Lesson {
   is_preview: boolean
 }
 
+interface InstructorProfile {
+  full_name: string | null
+  avatar_url: string | null
+}
+
 async function getCourse(id: string): Promise<Course | null> {
   const { data, error } = await supabase
     .from('courses')
@@ -32,6 +37,21 @@ async function getCourse(id: string): Promise<Course | null> {
 
   if (error) {
     console.error('Error fetching course:', error)
+    return null
+  }
+
+  return data
+}
+
+async function getInstructorProfile(instructorId: string): Promise<InstructorProfile | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('full_name, avatar_url')
+    .eq('id', instructorId)
+    .single()
+
+  if (error) {
+    console.error('Error fetching instructor profile:', error)
     return null
   }
 
@@ -90,9 +110,14 @@ export default async function CourseDetailPage({
     notFound()
   }
 
-  const { chapters, lessons } = await getChaptersWithLessons(id)
+  const [{ chapters, lessons }, instructorProfile] = await Promise.all([
+    getChaptersWithLessons(id),
+    getInstructorProfile(course.instructor)
+  ])
+
   const totalLessons = lessons.length
   const previewLessons = lessons.filter(l => l.is_preview).length
+  const instructorName = instructorProfile?.full_name || '강사'
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -184,12 +209,22 @@ export default async function CourseDetailPage({
 
             {/* Instructor */}
             <div className="flex items-center gap-3 mb-8 pb-8 border-b">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-purple-400 text-white text-lg font-medium">
-                {course.instructor.charAt(0)}
-              </div>
+              {instructorProfile?.avatar_url ? (
+                <Image
+                  src={instructorProfile.avatar_url}
+                  alt={instructorName}
+                  width={48}
+                  height={48}
+                  className="rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-purple-400 text-white text-lg font-medium">
+                  {instructorName.charAt(0)}
+                </div>
+              )}
               <div>
                 <p className="text-sm text-gray-500">강사</p>
-                <p className="font-semibold text-gray-900">{course.instructor}</p>
+                <p className="font-semibold text-gray-900">{instructorName}</p>
               </div>
             </div>
 

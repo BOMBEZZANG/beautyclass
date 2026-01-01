@@ -8,6 +8,7 @@ import GoogleLoginButton from '@/components/auth/GoogleLoginButton'
 
 export default function SignUpPage() {
   const router = useRouter()
+  const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -18,6 +19,16 @@ export default function SignUpPage() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    if (!fullName.trim()) {
+      setError('이름을 입력해주세요.')
+      return
+    }
+
+    if (fullName.trim().length < 2) {
+      setError('이름은 2자 이상이어야 합니다.')
+      return
+    }
 
     if (password !== confirmPassword) {
       setError('비밀번호가 일치하지 않습니다.')
@@ -31,15 +42,29 @@ export default function SignUpPage() {
 
     setLoading(true)
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          full_name: fullName.trim(),
+        },
+      },
     })
 
     if (error) {
       setError(error.message)
       setLoading(false)
     } else {
+      // 프로필에 이름 저장
+      if (data.user) {
+        await supabase
+          .from('profiles')
+          .upsert({
+            id: data.user.id,
+            full_name: fullName.trim(),
+          })
+      }
       setSuccess(true)
       setLoading(false)
     }
@@ -107,8 +132,23 @@ export default function SignUpPage() {
           {/* 이메일 회원가입 폼 */}
           <form onSubmit={handleSignUp} className="space-y-5">
             <div>
+              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
+                이름 <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="fullName"
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all"
+                placeholder="홍길동"
+              />
+            </div>
+
+            <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                이메일
+                이메일 <span className="text-red-500">*</span>
               </label>
               <input
                 id="email"
