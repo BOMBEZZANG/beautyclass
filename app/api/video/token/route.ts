@@ -35,14 +35,68 @@ function getPrivateKey() {
  * Signing Key를 사용하여 JWT를 직접 생성합니다.
  *
  * 요청: POST /api/video/token
- * Body: { videoId: string }
- * Headers: { Authorization: Bearer <supabase_access_token> }
+ * Body: { videoId: string, isPreview?: boolean, lessonId?: string }
+ * Headers: { Authorization: Bearer <supabase_access_token> } (미리보기가 아닌 경우 필수)
  *
  * 응답: { token: string, videoId: string, expiresIn: number }
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1. Authorization 헤더에서 Supabase 세션 토큰 추출
+    // 요청 바디 파싱
+    const body = await request.json()
+    const { videoId, isPreview, lessonId, courseId } = body
+
+    if (!videoId) {
+      return NextResponse.json(
+        { error: 'videoId가 필요합니다.' },
+        { status: 400 }
+      )
+    }
+
+    // 미리보기 레슨인 경우 - 레슨 DB에서 is_preview 확인
+    if (isPreview && lessonId) {
+      const { data: lesson, error: lessonError } = await supabaseAdmin
+        .from('lessons')
+        .select('is_preview, video_url')
+        .eq('id', lessonId)
+        .single()
+
+      if (lessonError || !lesson) {
+        return NextResponse.json(
+          { error: '레슨을 찾을 수 없습니다.' },
+          { status: 404 }
+        )
+      }
+
+      if (!lesson.is_preview) {
+        return NextResponse.json(
+          { error: '미리보기가 허용되지 않은 레슨입니다.' },
+          { status: 403 }
+        )
+      }
+
+      // 미리보기 레슨 토큰 생성 (인증 없이)
+      const privateKey = getPrivateKey()
+      const expiresIn = 3600 // 1시간
+      const expirationTime = Math.floor(Date.now() / 1000) + expiresIn
+
+      const token = await new SignJWT({
+        sub: videoId,
+        kid: CF_STREAM_KEY_ID,
+      })
+        .setProtectedHeader({ alg: 'RS256', kid: CF_STREAM_KEY_ID })
+        .setExpirationTime(expirationTime)
+        .sign(privateKey)
+
+      return NextResponse.json({
+        token,
+        videoId,
+        customerSubdomain: CF_STREAM_CUSTOMER_SUBDOMAIN,
+        expiresIn,
+      })
+    }
+
+    // 일반 레슨 - 인증 필요
     const authHeader = request.headers.get('Authorization')
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -54,7 +108,7 @@ export async function POST(request: NextRequest) {
 
     const accessToken = authHeader.replace('Bearer ', '')
 
-    // 2. Supabase로 유저 정보 확인
+    // Supabase로 유저 정보 확인
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(accessToken)
 
     if (userError || !user) {
@@ -64,39 +118,78 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 3. profiles 테이블에서 결제 여부 확인
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('has_paid')
-      .eq('id', user.id)
-      .single()
+    // purchases 테이블에서 강의 구매 여부 확인
+    // courseId가 없으면 lessonId로 course 찾기
+    let targetCourseId = courseId
 
-    if (profileError || !profile) {
+    if (!targetCourseId && lessonId) {
+      const { data: lesson } = await supabaseAdmin
+        .from('lessons')
+        .select('course_id')
+        .eq('id', lessonId)
+        .single()
+
+      if (lesson) {
+        targetCourseId = lesson.course_id
+      }
+    }
+
+    if (!targetCourseId) {
       return NextResponse.json(
-        { error: '프로필 정보를 찾을 수 없습니다.' },
-        { status: 404 }
+        { error: 'courseId 또는 lessonId가 필요합니다.' },
+        { status: 400 }
       )
     }
 
-    if (!profile.has_paid) {
+    // 강의 가격 확인 (무료 강의 처리)
+    const { data: course } = await supabaseAdmin
+      .from('courses')
+      .select('price')
+      .eq('id', targetCourseId)
+      .single()
+
+    // 무료 강의는 구매 확인 없이 토큰 발급
+    if (course && course.price === 0) {
+      const privateKey = getPrivateKey()
+      const expiresIn = 3600
+      const expirationTime = Math.floor(Date.now() / 1000) + expiresIn
+
+      const token = await new SignJWT({
+        sub: videoId,
+        kid: CF_STREAM_KEY_ID,
+      })
+        .setProtectedHeader({ alg: 'RS256', kid: CF_STREAM_KEY_ID })
+        .setExpirationTime(expirationTime)
+        .sign(privateKey)
+
+      return NextResponse.json({
+        token,
+        videoId,
+        customerSubdomain: CF_STREAM_CUSTOMER_SUBDOMAIN,
+        expiresIn,
+      })
+    }
+
+    // 유료 강의 - 구매 여부 확인
+    const { data: purchase, error: purchaseError } = await supabaseAdmin
+      .from('purchases')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('course_id', targetCourseId)
+      .single()
+
+    if (purchaseError && purchaseError.code !== 'PGRST116') {
+      console.error('구매 확인 오류:', purchaseError)
+    }
+
+    if (!purchase) {
       return NextResponse.json(
         { error: '결제가 필요합니다.' },
         { status: 403 }
       )
     }
 
-    // 4. 요청 바디에서 videoId 추출
-    const body = await request.json()
-    const { videoId } = body
-
-    if (!videoId) {
-      return NextResponse.json(
-        { error: 'videoId가 필요합니다.' },
-        { status: 400 }
-      )
-    }
-
-    // 5. Signing Key로 JWT 직접 생성
+    // Signing Key로 JWT 직접 생성
     const privateKey = getPrivateKey()
 
     // 토큰 만료 시간 (1시간)

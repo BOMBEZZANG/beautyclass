@@ -12,6 +12,8 @@ interface VideoPlayerWithAuthProps {
   title: string
   courseId: string
   price: number
+  isPreview?: boolean  // 미리보기 레슨인지 여부
+  lessonId?: string    // 레슨 ID (미리보기 검증용)
 }
 
 type AuthStatus = 'loading' | 'not_logged_in' | 'not_paid' | 'paid'
@@ -101,6 +103,8 @@ export default function VideoPlayerWithAuth({
   title,
   courseId,
   price,
+  isPreview = false,
+  lessonId,
 }: VideoPlayerWithAuthProps) {
   const [authStatus, setAuthStatus] = useState<AuthStatus>('loading')
   const [isProcessing, setIsProcessing] = useState(false)
@@ -116,15 +120,35 @@ export default function VideoPlayerWithAuth({
     setVideoError(null)
 
     try {
-      // Supabase 세션에서 access_token 가져오기
+      const videoId = extractVideoId(videoUrl)
+
+      // 미리보기 레슨인 경우 - 인증 없이 요청
+      if (isPreview && lessonId) {
+        const response = await fetch('/api/video/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ videoId, isPreview: true, lessonId }),
+        })
+
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || '토큰 요청 실패')
+        }
+
+        const tokenData: VideoTokenResponse = await response.json()
+        setVideoToken(tokenData)
+        return
+      }
+
+      // 일반 레슨 - Supabase 세션에서 access_token 가져오기
       const { data: { session } } = await supabase.auth.getSession()
 
       if (!session?.access_token) {
         setVideoError('세션이 만료되었습니다. 다시 로그인해주세요.')
         return
       }
-
-      const videoId = extractVideoId(videoUrl)
 
       const response = await fetch('/api/video/token', {
         method: 'POST',
@@ -148,7 +172,7 @@ export default function VideoPlayerWithAuth({
     } finally {
       setIsLoadingVideo(false)
     }
-  }, [videoUrl])
+  }, [videoUrl, isPreview, lessonId])
 
   // 결제 처리 함수
   async function handlePayment() {
@@ -216,6 +240,12 @@ export default function VideoPlayerWithAuth({
   // 인증 상태 확인
   useEffect(() => {
     async function checkAuth() {
+      // 미리보기 레슨이거나 무료 강의는 바로 paid 상태로 설정
+      if (isPreview || price === 0) {
+        setAuthStatus('paid')
+        return
+      }
+
       const { data: { user }, error: userError } = await supabase.auth.getUser()
 
       if (userError || !user) {
@@ -242,7 +272,7 @@ export default function VideoPlayerWithAuth({
     }
 
     checkAuth()
-  }, [])
+  }, [isPreview, price])
 
   // 결제 완료 상태일 때 비디오 토큰 요청
   useEffect(() => {

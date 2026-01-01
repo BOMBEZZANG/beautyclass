@@ -1,10 +1,27 @@
 import { supabase } from '@/lib/supabase'
 import { Course } from '@/types/course'
 import Link from 'next/link'
+import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import VideoPlayerWithAuth from '@/components/VideoPlayerWithAuth'
-import TestPaymentButton from '@/components/TestPaymentButton'
+import CurriculumSection from '@/components/CurriculumSection'
+import PurchaseButton from '@/components/PurchaseButton'
+import ReviewSection from '@/components/ReviewSection'
+
+interface Chapter {
+  id: string
+  title: string
+  order_index: number
+}
+
+interface Lesson {
+  id: string
+  chapter_id: string
+  title: string
+  video_url: string | null
+  order_index: number
+  is_preview: boolean
+}
 
 async function getCourse(id: string): Promise<Course | null> {
   const { data, error } = await supabase
@@ -19,6 +36,25 @@ async function getCourse(id: string): Promise<Course | null> {
   }
 
   return data
+}
+
+async function getChaptersWithLessons(courseId: string): Promise<{ chapters: Chapter[], lessons: Lesson[] }> {
+  const { data: chapters } = await supabase
+    .from('chapters')
+    .select('*')
+    .eq('course_id', courseId)
+    .order('order_index', { ascending: true })
+
+  const { data: lessons } = await supabase
+    .from('lessons')
+    .select('id, chapter_id, title, video_url, order_index, is_preview')
+    .eq('course_id', courseId)
+    .order('order_index', { ascending: true })
+
+  return {
+    chapters: chapters || [],
+    lessons: lessons || [],
+  }
 }
 
 function getLevelBadgeColor(level: Course['level']) {
@@ -54,6 +90,10 @@ export default async function CourseDetailPage({
     notFound()
   }
 
+  const { chapters, lessons } = await getChaptersWithLessons(id)
+  const totalLessons = lessons.length
+  const previewLessons = lessons.filter(l => l.is_preview).length
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <Navbar />
@@ -87,14 +127,22 @@ export default async function CourseDetailPage({
         <div className="grid gap-8 lg:grid-cols-3">
           {/* Main Content */}
           <div className="lg:col-span-2">
-            {/* Video Player or Thumbnail with Auth Check */}
-            <VideoPlayerWithAuth
-              videoUrl={course.video_url}
-              thumbnail={course.thumbnail}
-              title={course.title}
-              courseId={course.id}
-              price={course.price}
-            />
+            {/* Course Thumbnail */}
+            <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-gray-100 mb-6 shadow-lg">
+              {course.thumbnail ? (
+                <Image
+                  src={course.thumbnail}
+                  alt={course.title}
+                  fill
+                  className="object-cover"
+                  priority
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-pink-100 to-purple-100">
+                  <span className="text-6xl">💄</span>
+                </div>
+              )}
+            </div>
 
             {/* Course Info */}
             <div className="mb-6 flex flex-wrap items-center gap-3">
@@ -154,6 +202,33 @@ export default async function CourseDetailPage({
                 </p>
               </div>
             </div>
+
+            {/* Curriculum */}
+            {chapters.length > 0 && (
+              <div className="mt-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-gray-900">커리큘럼</h2>
+                  <span className="text-sm text-gray-500">
+                    {chapters.length}개 챕터 · {totalLessons}개 회차
+                    {previewLessons > 0 && (
+                      <span className="ml-2 text-purple-600">({previewLessons}개 미리보기)</span>
+                    )}
+                  </span>
+                </div>
+                <CurriculumSection
+                  chapters={chapters}
+                  lessons={lessons}
+                  courseId={course.id}
+                  price={course.price}
+                />
+              </div>
+            )}
+
+            {/* Reviews */}
+            <ReviewSection
+              courseId={course.id}
+              instructorId={course.instructor}
+            />
           </div>
 
           {/* Sidebar */}
@@ -166,13 +241,11 @@ export default async function CourseDetailPage({
                 </p>
               </div>
 
-              <button className="w-full rounded-full bg-gradient-to-r from-pink-500 to-purple-500 py-4 text-lg font-semibold text-white shadow-md transition-all hover:shadow-lg hover:from-pink-600 hover:to-purple-600 mb-4">
-                수강 신청하기
-              </button>
-
-              <button className="w-full rounded-full border-2 border-gray-200 py-3 text-base font-medium text-gray-700 transition-colors hover:border-pink-300 hover:text-pink-500">
-                장바구니에 담기
-              </button>
+              <PurchaseButton
+                courseId={course.id}
+                courseTitle={course.title}
+                price={course.price}
+              />
 
               <div className="mt-6 pt-6 border-t">
                 <h3 className="font-semibold text-gray-900 mb-4">이 강의에 포함된 내용</h3>
@@ -201,8 +274,6 @@ export default async function CourseDetailPage({
           </div>
         </div>
 
-        {/* Test Payment Button - 개발용 */}
-        <TestPaymentButton />
       </main>
 
       {/* Footer */}
